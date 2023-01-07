@@ -8,12 +8,13 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, inspect, func
+#engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 Base = automap_base()
 Base.prepare(autoload_with=engine)
 Measurement = Base.classes.measurement
 Station = Base.classes.station
-session = Session(engine)
+
 
 
 # Flask setup
@@ -32,12 +33,13 @@ def welcome():
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
         f"/api/v1.0/start<br/>"
-        f"/api/v1.0/<start>/<end>"
+        f"/api/v1.0/start/end"
     )
 
 
 @app.route("/api/v1.0/precipitation")
 def precipitation():
+    session = Session(engine)
     previous_twelve_months = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
     past_12_months_prcp = session.query(Measurement.date, Measurement.prcp).\
@@ -52,6 +54,7 @@ def precipitation():
 
 @app.route("/api/v1.0/stations")
 def station():
+    session = Session(engine)
     stations_listing = session.query(Measurement.station).distinct().all()
 
     session.close()
@@ -63,6 +66,7 @@ def station():
 
 @app.route("/api/v1.0/tobs")
 def temperature():
+    session = Session(engine)
     previous_twelve_months = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
     past_12_months_temp = session.query(Measurement.date, Measurement.tobs).\
@@ -78,85 +82,45 @@ def temperature():
 @app.route("/api/v1.0/<start>")
 @app.route("/api/v1.0/<start>/<end>")
 
-def start(start=None, end=None):
-    """Return TMIN, TAVG, TMAX."""
-
-    sel = [func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
-
-    if not end:
-
-# convert parameter "start" into proper datetime format
-
-        start= dt.datetime.strptime(start, "%m-%d-%Y")
-        data = session.query(*sel).\
-            filter(Measurement.date >= start).all()
-
-        session.close()
-
-# convert data into list format
-        starting_temp = list(np.ravel(data))
-
-# Convert list into json format
-        return jsonify(starting_temp)
-
-
-@app.route("/api/v1.0/<start>")
-@app.route("/api/v1.0/<start>/<end>")
-
 def start_end(start=None, end=None):
+    session = Session(engine)
     """Return TMIN, TAVG, TMAX."""
 
     sel = [func.min(Measurement.tobs), func.avg(
         Measurement.tobs), func.max(Measurement.tobs)]
 
-
         # convert parameter "start_end" into proper datetime format
 
-    start = dt.datetime.strptime(start, "%m-%d-%Y")
-    end = dt.datetime.strptime(end, "%m-%d-%Y")
-    start_end_data = session.query(*sel).\
+    # start = dt.datetime.strptime(start, "%Y-%m-%d")
+    # end = dt.datetime.strptime(end, "%Y-%m-%d")
+
+
+    if not end:
+
+        data = session.query(*sel).\
+        filter(Measurement.date >= start).all()
+
+        session.close()
+
+# convert data into list format
+        temp_results = list(np.ravel(data))
+
+# Convert list into json format
+        return jsonify(temp_results)
+
+
+    data = session.query(*sel).\
             filter(Measurement.date >= start).\
             filter(Measurement.date <= end).all()
 
     session.close()
 
 # convert data into list format
-    start_end_temp = list(np.ravel(start_end_data))
+    temp_results = list(np.ravel(data))
 
 # Convert list into json format
-    return jsonify(start_end_temp)
+    return jsonify(temp_results)
 
-
-# @app.route("/api/v1.0/<start>")
-# @app.route("/api/v1.0/<start>/<end>")
-# def start(start=None, end=None):
-#     """Return TMIN, TAVG, TMAX."""
-
-#     sel = [func.min(Measurement.tobs), func.avg(
-#         Measurement.tobs), func.max(Measurement.tobs)]
-
-#     if not end:
-
-#         # convert parameter "start" into proper datetime format
-
-#         start = dt.datetime.strptime(start, "%m-%d-%Y")
-#         end = dt.datetime.strptime(end, "%m-%d-%Y")
-#         data =  session.query(*sel).\
-#             filter(Measurement.date >= start).\
-#             filter(Measurement.date <= end).all()
-#         start= session.query(*sel).\
-#         filter(Measurement.date >= start).\
-#         filter(Measurement.date <= end).all()
-
-#         session.close()
-
-# # convert data into list format
-#         start_end_temp = list(np.ravel(data))
-#         start_end_temp = list(np.ravel(start_end_data))
-
-# # Convert list into json format
-#         return jsonify(start_end_temp)
-        
 
 
 if __name__ == '__main__':
